@@ -16,6 +16,12 @@ const PRODUCT_OPTION = 'ProductOption'
 const PRODUCT_VARIANT = 'ProductVariant'
 const SHOP_POLICY = 'ShopPolicy'
 
+const cleanUrl = url => {
+  if (!url) return url
+
+  return url.indexOf('?v=') >= 0 ? url.split('?')[0] : url
+}
+
 const { createNodeFactory, generateNodeId } = createNodeHelpers({
   typePrefix: TYPE_PREFIX,
 })
@@ -26,6 +32,8 @@ const downloadImageAndCreateFileNode = async (
 ) => {
   let fileNodeID
 
+  //if (url && url.indexOf('?v=') >= 0) url = url.split('?')[0]
+
   const mediaDataCacheKey = `${TYPE_PREFIX}__Media__${url}`
   const cacheMediaData = await cache.get(mediaDataCacheKey)
 
@@ -35,7 +43,12 @@ const downloadImageAndCreateFileNode = async (
     return fileNodeID
   }
 
-  const fileNode = await createRemoteFileNode({ url, store, cache, createNode })
+  const fileNode = await createRemoteFileNode({
+    url: cleanUrl(url),
+    store,
+    cache,
+    createNode,
+  })
 
   if (fileNode) {
     fileNodeID = fileNode.id
@@ -55,11 +68,14 @@ export const ArticleNode = imageArgs =>
         generateNodeId(COMMENT, edge.node.id),
       )
 
-    if (node.image)
+    if (node.image) {
+      node.image.src = cleanUrl(node.image.src)
+
       node.image.localFile___NODE = await downloadImageAndCreateFileNode(
         { id: node.image.id, url: node.image.src },
         imageArgs,
       )
+    }
 
     return node
   })
@@ -73,11 +89,13 @@ export const CollectionNode = imageArgs =>
         generateNodeId(PRODUCT, edge.node.id),
       )
 
-    if (node.image)
+    if (node.image) {
+      node.image.src = cleanUrl(node.image.src)
       node.image.localFile___NODE = await downloadImageAndCreateFileNode(
         { id: node.image.id, url: node.image.src },
         imageArgs,
       )
+    }
 
     return node
   })
@@ -101,6 +119,7 @@ export const ProductNode = imageArgs =>
 
     if (node.images && node.images.edges)
       node.images = await map(node.images.edges, async edge => {
+        edge.node.originalSrc = cleanUrl(edge.node.originalSrc)
         edge.node.localFile___NODE = await downloadImageAndCreateFileNode(
           { id: edge.node.id, url: edge.node.originalSrc },
           imageArgs,
@@ -115,11 +134,13 @@ export const ProductOptionNode = _imageArgs => createNodeFactory(PRODUCT_OPTION)
 
 export const ProductVariantNode = imageArgs =>
   createNodeFactory(PRODUCT_VARIANT, async node => {
-    if (node.image)
+    if (node.image) {
+      node.image.originalSrc = cleanUrl(node.image.originalSrc)
       node.image.localFile___NODE = await downloadImageAndCreateFileNode(
         { id: node.image.id, url: node.image.originalSrc },
         imageArgs,
       )
+    }
 
     return node
   })
